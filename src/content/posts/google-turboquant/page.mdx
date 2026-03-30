@@ -16,9 +16,10 @@ Enter **Google TurboQuant**, unveiled by Google Research in March 2026.
 
 <Callout title="The Headline Stats">
 TurboQuant is a training-free vector quantization algorithm that compresses the KV cache down to 3 to 4 bits per value.
-* It achieves a **6x memory reduction** relative to uncompressed storage.
-* It delivers up to an **8x speedup** for attention logit computation on Nvidia H100 GPUs.
-* It accomplishes this with *zero measurable accuracy loss*.
+
+- It achieves a **6x memory reduction** relative to uncompressed storage.
+- It delivers up to an **8x speedup** for attention logit computation on Nvidia H100 GPUs.
+- It accomplishes this with *zero measurable accuracy loss*.
 </Callout>
 
 ## The Mechanics: PolarQuant and QJL
@@ -35,9 +36,11 @@ Instead of standard Cartesian coordinates, PolarQuant maps vectors into polar co
 
 To fix the residual error from the PolarQuant step, TurboQuant applies a 1-bit Quantized Johnson-Lindenstrauss (QJL) transform. By reducing each remaining vector value to a single sign bit, QJL serves as a zero-bias estimator.
 
-<MathNote>In standard attention, we compute the logits via:
+<MathNote>
+In standard attention, we compute the logits via:
 $$ \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V $$
-By applying QJL, the estimator pairs high-precision query vectors ($Q$) with the heavily simplified 1-bit stored data from $K$, maintaining statistical equivalence without the memory bloat.</MathNote>
+By applying QJL, the estimator pairs high-precision query vectors ($Q$) with the heavily simplified 1-bit stored data from $K$, maintaining statistical equivalence without the memory bloat.
+</MathNote>
 
 ## Performance Breakdown
 
