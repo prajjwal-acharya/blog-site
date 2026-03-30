@@ -1,0 +1,99 @@
+---
+title: "A* Search — The Heuristic That Makes Pathfinding Elegant"
+date: "2024-12-20"
+description: "Why Dijkstra's algorithm is wasteful and how A* fixes it with an admissible heuristic. Full implementation and complexity analysis."
+category: "Algorithms"
+tags: ["A*", "Graph Search", "Heuristics", "Pathfinding", "Python"]
+---
+
+Dijkstra's algorithm is correct but blind — it expands outward in every direction uniformly. If you know *something* about where the goal is, why not use that knowledge? That's A*.
+
+## The Key Insight: $f = g + h$
+
+A* maintains a priority queue sorted by $f(n) = g(n) + h(n)$:
+
+- $g(n)$ — actual cost from start to node $n$
+- $h(n)$ — *estimated* cost from $n$ to goal (the heuristic)
+
+When $h(n) = 0$, A* reduces to Dijkstra's. When $h(n)$ is perfect (exactly the true remaining cost), A* expands only the nodes on the optimal path.
+
+**The admissibility condition**: $h(n)$ must never *overestimate* the true cost. If it does, A* may miss the optimal path.
+
+$$
+h(n) \leq h^*(n) \quad \forall n
+$$
+
+## Proof of Optimality
+
+Assume A* returns a suboptimal path $P$ before the optimal path $P^*$. Let $n$ be the last unexpanded node on $P^*$. Since the heuristic is admissible:
+
+$$
+f(n) = g(n) + h(n) \leq g(n) + h^*(n) = f^*(P^*)
+$$
+
+But A* would expand $n$ before $P$ (since $f(n) \leq f(P)$ — a contradiction). Therefore A* always finds the optimal path when the heuristic is admissible. $\square$
+
+## Implementation
+
+```python
+import heapq
+from dataclasses import dataclass, field
+from typing import Callable, TypeVar
+
+Node = TypeVar("Node")
+
+def astar(
+    start:     Node,
+    goal:      Node,
+    neighbors: Callable[[Node], list[tuple[Node, float]]],
+    heuristic: Callable[[Node, Node], float],
+) -> list[Node] | None:
+    """
+    Returns the shortest path from start to goal, or None if unreachable.
+    neighbors(n) -> [(neighbor, cost), ...]
+    """
+    # (f_score, g_score, node, path)
+    heap = [(heuristic(start, goal), 0.0, start, [start])]
+    visited: set[Node] = set()
+
+    while heap:
+        f, g, node, path = heapq.heappop(heap)
+
+        if node in visited:
+            continue
+        visited.add(node)
+
+        if node == goal:
+            return path
+
+        for neighbor, cost in neighbors(node):
+            if neighbor not in visited:
+                new_g = g + cost
+                new_f = new_g + heuristic(neighbor, goal)
+                heapq.heappush(heap, (new_f, new_g, neighbor, path + [neighbor]))
+
+    return None  # No path found
+
+
+# Grid example with Manhattan distance heuristic
+def manhattan(a: tuple[int, int], b: tuple[int, int]) -> float:
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+```
+
+## Common Heuristics
+
+| Domain | Heuristic | Admissible? |
+|--------|-----------|-------------|
+| Grid (4-dir) | Manhattan distance | ✅ |
+| Grid (8-dir) | Chebyshev distance | ✅ |
+| Any metric space | Euclidean distance | ✅ |
+| Road networks | Straight-line distance | ✅ |
+
+## Complexity
+
+- **Time**: $O(b^d)$ in the worst case (same as BFS), but typically much less with a good heuristic
+- **Space**: $O(b^d)$ — all nodes in memory (the usual tradeoff vs Dijkstra)
+
+For memory-constrained problems, consider **IDA*** (iterative deepening A*), which uses $O(d)$ space at the cost of repeated expansions.
+
+The elegance of A* is that it's a framework, not an algorithm — the heuristic is where your domain knowledge lives.

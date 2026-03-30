@@ -1,0 +1,46 @@
+---
+title: "GPT-4o: What Actually Changed and What Didn't"
+date: "2025-02-28"
+description: "A technical analysis of GPT-4o's multimodal architecture, its real-world capabilities, and where it still falls short compared to the hype."
+category: "AI Advances"
+tags: ["GPT-4o", "OpenAI", "Multimodal", "LLM", "Analysis"]
+---
+
+GPT-4o ("omni") was released with impressive demos of real-time voice conversation and image understanding. But what actually changed architecturally, and where does the model still struggle?
+
+## The Architecture Shift: End-to-End Multimodality
+
+Previous GPT-4 variants used a modular pipeline:
+- **Audio** → Whisper (ASR) → text → GPT-4 → text → TTS → **audio**
+
+GPT-4o replaces this with a single model that processes audio, vision, and text tokens in a unified transformer. This eliminates information loss at conversion boundaries and dramatically reduces latency.
+
+The key difference is the **token vocabulary**: GPT-4o likely uses a multi-codebook approach where audio is discretized into tokens that live in the same embedding space as text. This is similar to AudioPaLM and SpeechGPT but at unprecedented scale.
+
+## What This Means in Practice
+
+**Better prosody**: Because the model sees text and audio jointly, it can generate speech with appropriate emotion and rhythm rather than flat TTS output. The demo of it laughing authentically wasn't faked.
+
+**Faster response**: The old pipeline introduced ~400ms of inherent latency from the two conversions. The native audio model responds in ~200ms, approaching human conversation pace.
+
+**Implicit audio information**: The model can now "hear" background sounds, accents, emotional tone — information that was completely lost when converting to a transcript first.
+
+## Where It Still Struggles
+
+Despite the improvements, consistent failure modes remain:
+
+**1. Long-context reasoning**: Even with 128k tokens, performance degrades significantly past ~30k tokens on tasks requiring integration of information across the full window.
+
+**2. Calibration**: The model is often confident when wrong. It doesn't know what it doesn't know — and post-training RLHF makes this worse, not better, by rewarding confident-sounding outputs.
+
+**3. Math and code**: GPT-4o is slightly *worse* than GPT-4 Turbo on competitive math benchmarks. The multimodal training appears to have traded some reasoning depth for breadth.
+
+<Callout title="The Honesty Gap">
+The most important benchmark isn't MMLU or HumanEval — it's how often the model says "I don't know" when it should. No model does this well enough for high-stakes applications.
+</Callout>
+
+## The Real Competition
+
+GPT-4o's real competition isn't other GPT variants — it's Claude 3.5 Sonnet (better on coding and analysis) and Gemini 1.5 Pro (much longer effective context window).
+
+The multimodal unification is genuinely impressive engineering, but for most text-only workloads, the improvement over GPT-4 Turbo is incremental. The voice experience is the real breakthrough — it's the first time talking to an LLM has felt *natural*.

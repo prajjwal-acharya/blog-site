@@ -1,0 +1,90 @@
+---
+title: "Backpropagation From Scratch — No Black Boxes"
+date: "2025-02-08"
+description: "Deriving the chain rule through a neural network manually, then implementing it in ~50 lines of NumPy. Understanding why gradients vanish and explode."
+category: "Math & ML"
+tags: ["Backpropagation", "Gradients", "Neural Networks", "NumPy", "Calculus"]
+featured: true
+---
+
+Every deep learning framework does backprop for you. That's both a blessing and a curse — you get speed, but you lose intuition. Let's re-derive it manually so the magic becomes mechanics.
+
+## The Chain Rule, Revisited
+
+Backpropagation is just the chain rule applied repeatedly across a computation graph. For a composition $f(g(x))$:
+
+$$
+\frac{df}{dx} = \frac{df}{dg} \cdot \frac{dg}{dx}
+$$
+
+In a neural network with $L$ layers and loss $\mathcal{L}$, we want $\frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(l)}}$ for each weight matrix. The chain expands as:
+
+$$
+\frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(l)}} = \frac{\partial \mathcal{L}}{\partial \mathbf{a}^{(L)}} \cdot \frac{\partial \mathbf{a}^{(L)}}{\partial \mathbf{a}^{(L-1)}} \cdots \frac{\partial \mathbf{a}^{(l+1)}}{\partial \mathbf{z}^{(l)}} \cdot \frac{\partial \mathbf{z}^{(l)}}{\partial \mathbf{W}^{(l)}}
+$$
+
+Where $\mathbf{z}^{(l)} = \mathbf{W}^{(l)}\mathbf{a}^{(l-1)} + \mathbf{b}^{(l)}$ is the pre-activation and $\mathbf{a}^{(l)} = \sigma(\mathbf{z}^{(l)})$ is the activation.
+
+## The Vanishing Gradient Problem
+
+Consider a network with sigmoid activations. The sigmoid derivative is $\sigma'(z) = \sigma(z)(1 - \sigma(z))$, which is at most $0.25$.
+
+For $L$ layers, each backward pass multiplies by $\sigma'$. After 10 layers:
+
+$$
+\left\|\frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(1)}}\right\| \leq (0.25)^{10} \approx 10^{-6}
+$$
+
+The gradient is effectively zero. The first layers learn *nothing*.
+
+<Callout title="The Fix">
+ReLU: $\sigma(z) = \max(0, z)$ has derivative 1 for positive inputs, breaking the multiplicative decay. Residual connections (ResNets) add another route for gradients that bypasses layers entirely.
+</Callout>
+
+## A Minimal Implementation
+
+```python
+import numpy as np
+
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+def forward(X, W1, b1, W2, b2):
+    z1 = X @ W1 + b1
+    a1 = np.tanh(z1)
+    z2 = a1 @ W2 + b2
+    a2 = sigmoid(z2)
+    cache = (X, z1, a1, z2, a2)
+    return a2, cache
+
+def backward(y, cache, W2):
+    X, z1, a1, z2, a2 = cache
+    m = X.shape[0]
+
+    # Output layer
+    dz2 = a2 - y                         # ∂L/∂z2
+    dW2 = (a1.T @ dz2) / m
+    db2 = dz2.mean(axis=0, keepdims=True)
+
+    # Hidden layer
+    da1 = dz2 @ W2.T
+    dz1 = da1 * (1 - a1**2)             # tanh' = 1 - tanh²
+    dW1 = (X.T @ dz1) / m
+    db1 = dz1.mean(axis=0, keepdims=True)
+
+    return dW1, db1, dW2, db2
+```
+
+The key insight: the backward pass mirrors the forward pass in reverse, accumulating the chain rule at each step. There's nothing more to it.
+
+## Weight Initialization Matters
+
+If weights are too small, activations collapse to zero. Too large, and they saturate. Xavier initialization ensures variance is preserved across layers:
+
+$$
+W \sim \mathcal{U}\!\left[-\frac{\sqrt{6}}{\sqrt{n_{in} + n_{out}}},\ \frac{\sqrt{6}}{\sqrt{n_{in} + n_{out}}}\right]
+$$
+
+For ReLU, He initialization doubles the variance to account for half the neurons being zeroed out.
+
+The dirty secret of deep learning: most of the "engineering" is keeping these gradient flows healthy.
