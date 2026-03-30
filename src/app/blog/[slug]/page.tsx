@@ -42,6 +42,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 // MDX component overrides — maps HTML elements to styled versions
 const mdxComponents = {
+  // Headings
+  h1: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h1
+      {...props}
+      className="font-headline text-4xl md:text-5xl font-bold tracking-tight mt-16 mb-6 text-[var(--color-on-surface)]"
+    >
+      {children}
+    </h1>
+  ),
   h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
     <h2
       {...props}
@@ -58,12 +67,151 @@ const mdxComponents = {
       {children}
     </h3>
   ),
+  h4: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h4
+      {...props}
+      className="font-headline text-xl font-semibold tracking-tight mt-8 mb-3 text-[var(--color-on-surface)]"
+    >
+      {children}
+    </h4>
+  ),
+  h5: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h5
+      {...props}
+      className="font-headline text-lg font-semibold tracking-tight mt-6 mb-2 text-[var(--color-on-surface)]"
+    >
+      {children}
+    </h5>
+  ),
+  h6: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h6
+      {...props}
+      className="font-headline text-base font-semibold tracking-tight mt-4 mb-2 text-[var(--color-on-surface)]"
+    >
+      {children}
+    </h6>
+  ),
+
+  // Text elements
+  p: ({ children, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
+    <p {...props} className="text-[var(--color-on-surface)] leading-relaxed mb-4">
+      {children}
+    </p>
+  ),
+  strong: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => (
+    <strong {...props} className="font-bold text-[var(--color-on-surface)]">
+      {children}
+    </strong>
+  ),
+  em: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => (
+    <em {...props} className="italic text-[var(--color-on-surface)]">
+      {children}
+    </em>
+  ),
+  a: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a
+      {...props}
+      href={href}
+      className="text-[var(--color-primary)] hover:underline transition-colors"
+    >
+      {children}
+    </a>
+  ),
+
+  // Lists
+  ul: ({ children, ...props }: React.HTMLAttributes<HTMLUListElement>) => (
+    <ul {...props} className="list-disc list-inside ml-4 mb-4 space-y-2 text-[var(--color-on-surface)]">
+      {children}
+    </ul>
+  ),
+  ol: ({ children, ...props }: React.HTMLAttributes<HTMLOListElement>) => (
+    <ol {...props} className="list-decimal list-inside ml-4 mb-4 space-y-2 text-[var(--color-on-surface)]">
+      {children}
+    </ol>
+  ),
+  li: ({ children, ...props }: React.HTMLAttributes<HTMLLIElement>) => (
+    <li {...props} className="text-[var(--color-on-surface)]">
+      {children}
+    </li>
+  ),
+
+  // Code
+  code: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => (
+    <code
+      {...props}
+      className="bg-[var(--color-primary-fixed-dim)]/20 px-1.5 py-0.5 rounded-[0.125rem] font-mono text-sm text-[var(--color-primary)] whitespace-nowrap"
+    >
+      {children}
+    </code>
+  ),
+  pre: ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => (
+    <pre
+      {...props}
+      className="bg-[var(--color-on-surface)] text-[var(--color-surface)] p-4 rounded-[0.25rem] overflow-x-auto mb-4 font-mono text-sm"
+    >
+      {children}
+    </pre>
+  ),
+
+  // Tables
+  table: ({ children, ...props }: React.TableHTMLAttributes<HTMLTableElement>) => (
+    <div className="overflow-x-auto my-8">
+      <table {...props} className="w-full border-collapse text-sm">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead
+      {...props}
+      className="bg-[var(--color-surface-container-high)] border-b-2 border-[var(--color-outline-variant)]"
+    >
+      {children}
+    </thead>
+  ),
+  tbody: ({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <tbody {...props}>
+      {children}
+    </tbody>
+  ),
+  tr: ({ children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr
+      {...props}
+      className="border-b border-[var(--color-outline-variant)]/30 hover:bg-[var(--color-surface-container-low)] transition-colors"
+    >
+      {children}
+    </tr>
+  ),
+  th: ({ children, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+    <th
+      {...props}
+      className="px-4 py-2 text-left font-semibold text-[var(--color-on-surface)]"
+    >
+      {children}
+    </th>
+  ),
+  td: ({ children, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td {...props} className="px-4 py-3 text-[var(--color-on-surface-variant)]">
+      {children}
+    </td>
+  ),
+
+  // Blockquote
   blockquote: ({ children }: React.HTMLAttributes<HTMLQuoteElement>) => (
     <blockquote className="my-10 pl-6 border-l-4 border-[var(--color-primary)]/40 italic font-headline text-2xl text-[var(--color-primary)]/80 leading-relaxed">
       {children}
     </blockquote>
   ),
-  // Callout box via custom MDX component
+
+  // Horizontal rule
+  hr: ({ ...props }: React.HTMLAttributes<HTMLHRElement>) => (
+    <hr
+      {...props}
+      className="my-8 border-t border-[var(--color-outline-variant)]/30"
+    />
+  ),
+
+  // Custom components — Callout box via custom MDX component
   Callout: ({ children, title }: { children: React.ReactNode; title?: string }) => (
     <div className="my-8 bg-[var(--color-surface-container-highest)] rounded-[0.25rem] border-l-4 border-[var(--color-primary)] p-6">
       {title && (
@@ -71,17 +219,28 @@ const mdxComponents = {
           {title}
         </p>
       )}
-      <div className="text-[var(--color-on-surface-variant)] text-sm leading-relaxed italic">
+      <div className="text-[var(--color-on-surface-variant)] text-sm leading-relaxed">
         {children}
       </div>
     </div>
   ),
+
   // Math highlight inline
   MathNote: ({ children }: { children: React.ReactNode }) => (
     <span className="bg-[var(--color-primary-fixed-dim)]/20 px-1.5 border-b border-[var(--color-primary)]/25 rounded-[0.125rem]">
       {children}
     </span>
   ),
+
+  // Editorial accent (for !ATTENTION blocks)
+  EditorialAccent: ({ children }: { children: React.ReactNode }) => (
+    <div className="my-6 pl-6 border-l-4 border-[var(--color-primary)] bg-[var(--color-primary-fixed-dim)]/10 py-4 pr-4 rounded-r-[0.25rem]">
+      <div className="text-[var(--color-on-surface-variant)] text-sm leading-relaxed">
+        {children}
+      </div>
+    </div>
+  ),
+
   // Interactive simulations
   MatrixVisualization: (props: any) => <MatrixVisualization {...props} />,
   GraphVisualizer: (props: any) => <GraphVisualizer {...props} />,
