@@ -1,11 +1,20 @@
 "use client";
 
 /**
- * CodeSandbox — interactive code execution environment
- * Displays code with syntax highlighting and allows execution with live output
+ * CodeSandbox — syntax-highlighted code display
+ * Supports: Python, JavaScript, Go, Rust, TypeScript, and more
+ * Uses Prism.js for syntax highlighting with proper indentation
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef } from "react";
+
+declare global {
+  interface Window {
+    Prism?: {
+      highlightElement: (element: HTMLElement) => void;
+    };
+  }
+}
 
 interface CodeSandboxProps {
   title: string;
@@ -13,110 +22,91 @@ interface CodeSandboxProps {
   code: string;
 }
 
+// Language display names
+const LANGUAGE_NAMES: Record<string, string> = {
+  python: "Python",
+  py: "Python",
+  javascript: "JavaScript",
+  js: "JavaScript",
+  typescript: "TypeScript",
+  ts: "TypeScript",
+  go: "Go",
+  rust: "Rust",
+  rs: "Rust",
+  cpp: "C++",
+  c: "C",
+  java: "Java",
+  csharp: "C#",
+  php: "PHP",
+  ruby: "Ruby",
+  bash: "Bash",
+  shell: "Shell",
+  sql: "SQL",
+  json: "JSON",
+  xml: "XML",
+  html: "HTML",
+  css: "CSS",
+};
+
 export default function CodeSandbox({ title, language, code }: CodeSandboxProps) {
-  const [output, setOutput] = useState<string>("");
-  const [isRunning, setIsRunning] = useState(false);
-  const [error, setError] = useState<string>("");
-  const consoleRef = useRef<string[]>([]);
+  const codeRef = useRef<HTMLElement>(null);
+  const safeCode = code?.trim() || "# Code unavailable";
+  const langKey = language.toLowerCase();
+  const langDisplay = LANGUAGE_NAMES[langKey] || language;
 
-  const handleRun = () => {
-    setIsRunning(true);
-    setOutput("");
-    setError("");
-    consoleRef.current = [];
+  useEffect(() => {
+    // Dynamically load Prism if not already loaded
+    if (typeof window !== "undefined" && !window.Prism) {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js";
+      script.onload = () => {
+        // Load language support
+        const langScript = document.createElement("script");
+        langScript.src = `https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-${langKey}.min.js`;
+        document.head.appendChild(langScript);
 
-    try {
-      // Create a safe execution environment
-      const originalLog = console.log;
-      const originalError = console.error;
-      const originalWarn = console.warn;
+        // Load CSS
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css";
+        document.head.appendChild(link);
 
-      console.log = (...args: any[]) => {
-        const message = args.map((arg) =>
-          typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)
-        ).join(" ");
-        consoleRef.current.push(message);
+        if (codeRef.current && window.Prism) {
+          window.Prism!.highlightElement(codeRef.current);
+        }
       };
-
-      console.error = (...args: any[]) => {
-        const message = args.map((arg) =>
-          typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)
-        ).join(" ");
-        consoleRef.current.push(`ERROR: ${message}`);
-      };
-
-      console.warn = (...args: any[]) => {
-        const message = args.map((arg) =>
-          typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)
-        ).join(" ");
-        consoleRef.current.push(`WARN: ${message}`);
-      };
-
-      // Execute code
-      const fn = new Function(code);
-      fn();
-
-      // Restore console
-      console.log = originalLog;
-      console.error = originalError;
-      console.warn = originalWarn;
-
-      setOutput(consoleRef.current.join("\n"));
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "An unknown error occurred"
-      );
-    } finally {
-      setIsRunning(false);
+      document.head.appendChild(script);
+    } else if (window.Prism && codeRef.current) {
+      window.Prism!.highlightElement(codeRef.current);
     }
-  };
+  }, [code, langKey]);
 
   return (
-    <div className="my-8 bg-[var(--color-surface-container-lowest)] rounded-[0.25rem] border border-[var(--color-outline-variant)]/20 p-6">
-      <h3 className="font-headline text-lg font-semibold text-[var(--color-on-surface)] mb-4">{title}</h3>
-
-      {/* Code Block */}
-      <div className="mb-4 bg-[var(--color-on-surface)] rounded-[0.25rem] p-4 overflow-x-auto">
-        <code className="text-xs font-mono text-[var(--color-surface)] leading-relaxed whitespace-pre">
-          {code}
-        </code>
+    <div className="not-prose my-8 bg-[var(--color-surface-container-lowest)] rounded-[0.25rem] border border-[var(--color-outline-variant)]/20 p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-headline text-lg font-semibold text-[var(--color-on-surface)]">
+          {title}
+        </h3>
+        <span className="text-[0.6rem] font-bold tracking-[0.2em] uppercase text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded px-2 py-0.5">
+          {langDisplay}
+        </span>
       </div>
 
-      {/* Execute Button */}
-      <button
-        onClick={handleRun}
-        disabled={isRunning}
-        className="mb-4 px-4 py-2 bg-[var(--color-primary)] text-white rounded-[0.25rem] font-semibold hover:bg-[var(--color-primary-container)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        {isRunning ? "Running..." : "▶ Run Code"}
-      </button>
+      {/* Code block with syntax highlighting */}
+      <div className="mb-4 rounded-[0.25rem] overflow-x-auto">
+        <pre className="m-0 p-4 bg-[#282c34] text-[#abb2bf]">
+          <code
+            ref={codeRef}
+            className={`language-${langKey} text-sm leading-relaxed font-mono`}
+          >
+            {safeCode}
+          </code>
+        </pre>
+      </div>
 
-      {/* Output */}
-      {(output || error) && (
-        <div>
-          <p className="font-label text-[0.6rem] font-bold tracking-[0.2em] uppercase text-[var(--color-on-surface)] mb-2">
-            Output
-          </p>
-          <div className={`bg-[var(--color-on-surface)] rounded-[0.25rem] p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words ${
-            error ? "text-red-400" : "text-[#90EE90]"
-          }`}>
-            {error ? (
-              <span>
-                <strong>Error:</strong> {error}
-              </span>
-            ) : (
-              output || "No output"
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Notes */}
-      <div className="mt-4 text-xs text-[var(--color-on-surface-variant)] italic space-y-1">
-        <p>💡 This code runs in your browser. Output uses console.log().</p>
-        <p>⚠️ For security, only JavaScript is supported in this sandbox.</p>
+      {/* Info note */}
+      <div className="text-xs text-[var(--color-on-surface-variant)] italic">
+        <p>💡 Code is displayed with syntax highlighting. Copy to use in your editor.</p>
       </div>
     </div>
   );

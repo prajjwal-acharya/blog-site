@@ -1,6 +1,6 @@
 /**
  * ArticleML Parser — converts custom markup syntax to MDX
- * Handles: headings, math, tables, callouts, and interactive simulations
+ * Handles: headings, text, callouts, math, tables, placeholders
  * Robust error handling and validation included
  */
 
@@ -12,6 +12,8 @@ interface FrontMatter {
   tags: string[];
   featured?: boolean;
   readingTime?: string;
+  series?: string;        // Optional series name
+  seriesOrder?: number;   // Optional position in series
 }
 
 interface ParsedArticle {
@@ -89,6 +91,8 @@ function parseFrontMatter(yaml: string): FrontMatter {
     if (key === 'category') fm.category = value.replace(/^["']|["']$/g, '');
     if (key === 'featured') fm.featured = value === 'true';
     if (key === 'readingTime') fm.readingTime = value.replace(/^["']|["']$/g, '');
+    if (key === 'series') fm.series = value.replace(/^["']|["']$/g, '');
+    if (key === 'seriesOrder') fm.seriesOrder = parseInt(value, 10);
     if (key === 'tags') {
       const tagsStr = value.replace(/^\[|\]$/g, '');
       fm.tags = tagsStr
@@ -108,17 +112,17 @@ function parseFrontMatter(yaml: string): FrontMatter {
 }
 
 /**
- * Parse article body — handles sections, math, tables, callouts, simulations
+ * Parse article body — handles text blocks, callouts, math, tables, placeholders
  */
 function parseBody(body: string): string {
   let mdx = body;
 
-  // Process in order: simulations first (preserve content), then other blocks
-  mdx = processSimulations(mdx);
+  // Process in order: text-based first, then placeholders
   mdx = processCallouts(mdx);
   mdx = processMathNotes(mdx);
   mdx = processAttentionBlocks(mdx);
   mdx = processTables(mdx);
+  mdx = processPlaceholders(mdx);
   mdx = normalizeMath(mdx);
 
   // Clean up extra whitespace
@@ -128,47 +132,34 @@ function parseBody(body: string): string {
 }
 
 /**
- * Process !SIMULATION blocks → MDX component (robust)
+ * Process [!PLACEHOLDER] syntax → MDX Placeholder component
+ * Format: [!IMAGE] : {desc: "Description here"}
+ * Supports: IMAGE, VIDEO, SIMULATION, CODE
  */
-function processSimulations(content: string): string {
-  // Pattern 1: Multi-line simulation with config object
-  const simPattern = /!SIMULATION\s+type="([^"]+)"\s+component="([^"]+)"\s+title="([^"]+)"\s+config=(\{[\s\S]*?\})\s*!END-SIMULATION/g;
+function processPlaceholders(content: string): string {
+  // Pattern: [!TYPE] : {desc: "..."}
+  const placeholderPattern = /\[\!([A-Z]+)\]\s*:\s*\{desc:\s*"([^"]*)"\s*\}/g;
 
-  content = content.replace(simPattern, (match, type, component, title, configStr) => {
+  content = content.replace(placeholderPattern, (match, type, desc) => {
     try {
-      // Clean config string: replace single quotes with double quotes for JSON
-      const cleanConfig = configStr
-        .replace(/'/g, '"')
-        .replace(/,\s*}/g, '}'); // Remove trailing commas
+      const typeMap: Record<string, string> = {
+        IMAGE: 'image',
+        VIDEO: 'video',
+        SIMULATION: 'simulation',
+        CODE: 'code',
+      };
 
-      // Validate JSON
-      const config = JSON.parse(cleanConfig);
+      const mappedType = typeMap[type.toUpperCase()];
+      if (!mappedType) {
+        console.warn(`⚠️  Unknown placeholder type: ${type}`);
+        return match; // Return original if unknown
+      }
 
-      // Generate JSX with properly escaped props
-      const configJSON = JSON.stringify(config);
-      return `<${component} title="${escapeForJSON(title)}" config={${configJSON}} />`;
+      const title = type.charAt(0) + type.slice(1).toLowerCase();
+      return `<Placeholder type="${mappedType}" title="${escapeForJSON(title)}" description="${escapeForJSON(desc)}" />`;
     } catch (e) {
-      console.warn(`⚠️  Failed to parse simulation config: ${configStr}`);
-      console.warn(`Error: ${e instanceof Error ? e.message : String(e)}`);
-      return `<!-- Failed to parse ${component} simulation -->`;
-    }
-  });
-
-  // Pattern 2: Code sandbox with multiline code block
-  const sandboxPattern = /!SIMULATION\s+type="code-sandbox"\s+language="([^"]+)"\s+title="([^"]+)"\s+code="""([\s\S]*?)"""\s*!END-SIMULATION/g;
-
-  content = content.replace(sandboxPattern, (match, lang, title, code) => {
-    try {
-      const trimmedCode = code.trim();
-      const escapedCode = trimmedCode
-        .replace(/\\/g, '\\\\')
-        .replace(/`/g, '\\`')
-        .replace(/\$/g, '\\$');
-
-      return `<CodeSandbox language="${escapeForJSON(lang)}" title="${escapeForJSON(title)}" code={\`${escapedCode}\`} />`;
-    } catch (e) {
-      console.warn(`⚠️  Failed to parse CodeSandbox: ${title}`);
-      return `<!-- Failed to parse CodeSandbox -->`;
+      console.warn(`⚠️  Failed to parse placeholder: ${type}`);
+      return match;
     }
   });
 
@@ -224,7 +215,7 @@ function processTables(content: string): string {
 
   content = content.replace(tablePattern, (match, tableContent) => {
     try {
-      const lines = tableContent.trim().split('\n').filter((l) => l.trim());
+      const lines = tableContent.trim().split('\n').filter((l: string) => l.trim());
 
       if (lines.length < 3) {
         console.warn('⚠️  Table must have at least header and separator rows');
@@ -233,34 +224,34 @@ function processTables(content: string): string {
 
       const headerRow = lines[0]
         .split('|')
-        .map((c) => c.trim())
-        .filter((c) => c);
+        .map((c: string) => c.trim())
+        .filter((c: string) => c);
 
       const bodyRows = lines
         .slice(2)
-        .map((row) =>
+        .map((row: string) =>
           row
             .split('|')
-            .map((c) => c.trim())
-            .filter((c) => c)
+            .map((c: string) => c.trim())
+            .filter((c: string) => c)
         );
 
-      if (bodyRows.some((row) => row.length !== headerRow.length)) {
+      if (bodyRows.some((row: string[]) => row.length !== headerRow.length)) {
         console.warn('⚠️  All table rows must have same number of columns');
         return `<!-- Invalid table: inconsistent column count -->`;
       }
 
       let html = '<table>\n';
       html += '<thead>\n<tr>\n';
-      headerRow.forEach((cell) => {
+      headerRow.forEach((cell: string) => {
         html += `  <th>${cell}</th>\n`;
       });
       html += '</tr>\n</thead>\n';
 
       html += '<tbody>\n';
-      bodyRows.forEach((row) => {
+      bodyRows.forEach((row: string[]) => {
         html += '<tr>\n';
-        row.forEach((cell) => {
+        row.forEach((cell: string) => {
           html += `  <td>${cell}</td>\n`;
         });
         html += '</tr>\n';
@@ -304,6 +295,8 @@ export function articleMLToMDX(article: ParsedArticle): string {
   mdx += `tags: [${tags}]\n`;
   if (fm.featured) mdx += `featured: ${fm.featured}\n`;
   if (fm.readingTime) mdx += `readingTime: "${escapeForJSON(fm.readingTime)}"\n`;
+  if (fm.series) mdx += `series: "${escapeForJSON(fm.series)}"\n`;
+  if (fm.seriesOrder !== undefined) mdx += `seriesOrder: ${fm.seriesOrder}\n`;
   mdx += '---\n\n';
   mdx += article.mdxContent;
 

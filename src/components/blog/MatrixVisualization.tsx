@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 
 interface MatrixVizProps {
   title: string;
-  config: {
+  config?: {
     matrixA?: number[][];
     matrixB?: number[][];
     animated?: boolean;
@@ -19,8 +19,8 @@ interface MatrixVizProps {
 }
 
 export default function MatrixVisualization({ title, config }: MatrixVizProps) {
-  const [matrixA, setMatrixA] = useState(config.matrixA || [[1, 2], [3, 4]]);
-  const [matrixB, setMatrixB] = useState(config.matrixB || [[5, 6], [7, 8]]);
+  const [matrixA, setMatrixA] = useState(config?.matrixA || [[1, 2], [3, 4]]);
+  const [matrixB, setMatrixB] = useState(config?.matrixB || [[5, 6], [7, 8]]);
   const [result, setResult] = useState<number[][] | null>(null);
   const [activeStep, setActiveStep] = useState(0);
   const [highlightedCell, setHighlightedCell] = useState<[number, number] | null>(null);
@@ -113,7 +113,7 @@ export default function MatrixVisualization({ title, config }: MatrixVizProps) {
       </div>
 
       {/* Step Controls */}
-      {config.showSteps && (
+      {config?.showSteps && (
         <div className="flex gap-2 justify-center mb-6">
           <button
             onClick={handleStepBackward}

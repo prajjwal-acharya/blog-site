@@ -12,6 +12,8 @@ export interface PostMeta {
   coverAlt?: string;
   featured?: boolean;
   draft?: boolean;
+  series?: string;        // Series name (optional)
+  seriesOrder?: number;   // Position in series (optional)
 }
 
 export interface Post extends PostMeta {

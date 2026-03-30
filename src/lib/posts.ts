@@ -1,6 +1,7 @@
 /**
  * Content utilities for reading MDX posts from the filesystem.
- * Keeps all file I/O in one place — components never read fs directly.
+ * New structure: src/content/posts/{slug}/page.mdx
+ * Each post is a folder containing page.mdx and optional dependent files (graph.tsx, simulation.tsx, etc.)
  */
 
 import fs from "fs";
@@ -11,49 +12,54 @@ import type { Post, PostMeta } from "./types";
 
 const POSTS_DIR = path.join(process.cwd(), "src/content/posts");
 
-/** Read all .mdx files, parse front-matter, return sorted by date desc. */
+/** Read all post folders, parse page.mdx front-matter, return sorted by date desc. */
 export function getAllPosts(): PostMeta[] {
   if (!fs.existsSync(POSTS_DIR)) return [];
 
-  const files = fs
-    .readdirSync(POSTS_DIR)
-    .filter((f) => f.endsWith(".mdx") || f.endsWith(".md"));
+  const entries = fs.readdirSync(POSTS_DIR, { withFileTypes: true });
+  const folders = entries.filter((entry) => entry.isDirectory());
 
-  const posts = files.map((filename) => {
-    const slug = filename.replace(/\.(mdx|md)$/, "");
-    const raw = fs.readFileSync(path.join(POSTS_DIR, filename), "utf8");
-    const { data, content } = matter(raw);
-    const { text: readTime } = readingTime(content);
+  const posts = folders
+    .map((folder) => {
+      const slug = folder.name;
+      const pagePath = path.join(POSTS_DIR, slug, "page.mdx");
 
-    return {
-      slug,
-      title:       data.title       ?? "Untitled",
-      date:        data.date        ?? new Date().toISOString().split("T")[0],
-      description: data.description ?? "",
-      category:    data.category    ?? "General",
-      tags:        data.tags        ?? [],
-      readingTime: readTime,
-      coverImage:  data.coverImage,
-      coverAlt:    data.coverAlt,
-      featured:    data.featured    ?? false,
-      draft:       data.draft       ?? false,
-    } satisfies PostMeta;
-  });
+      // Skip if page.mdx doesn't exist
+      if (!fs.existsSync(pagePath)) return null;
 
-  return posts
-    .filter((p) => !p.draft)
+      const raw = fs.readFileSync(pagePath, "utf8");
+      const { data, content } = matter(raw);
+      const { text: readTime } = readingTime(content);
+
+      return {
+        slug,
+        title:       data.title       ?? "Untitled",
+        date:        data.date        ?? new Date().toISOString().split("T")[0],
+        description: data.description ?? "",
+        category:    data.category    ?? "General",
+        tags:        data.tags        ?? [],
+        readingTime: readTime,
+        coverImage:  data.coverImage,
+        coverAlt:    data.coverAlt,
+        featured:    data.featured    ?? false,
+        draft:       data.draft       ?? false,
+        series:      data.series,
+        seriesOrder: data.seriesOrder,
+      } as PostMeta;
+    })
+    .filter((p): p is PostMeta => p !== null && !p.draft)
     .sort((a, b) => (a.date > b.date ? -1 : 1));
+
+  return posts;
 }
 
 /** Get single post by slug, including raw MDX content. */
 export function getPostBySlug(slug: string): Post | null {
-  const mdxPath  = path.join(POSTS_DIR, `${slug}.mdx`);
-  const mdPath   = path.join(POSTS_DIR, `${slug}.md`);
-  const filePath = fs.existsSync(mdxPath) ? mdxPath : fs.existsSync(mdPath) ? mdPath : null;
+  const pagePath = path.join(POSTS_DIR, slug, "page.mdx");
 
-  if (!filePath) return null;
+  if (!fs.existsSync(pagePath)) return null;
 
-  const raw = fs.readFileSync(filePath, "utf8");
+  const raw = fs.readFileSync(pagePath, "utf8");
   const { data, content } = matter(raw);
   const { text: readTime } = readingTime(content);
 
@@ -70,16 +76,19 @@ export function getPostBySlug(slug: string): Post | null {
     coverAlt:    data.coverAlt,
     featured:    data.featured    ?? false,
     draft:       data.draft       ?? false,
+    series:      data.series,
+    seriesOrder: data.seriesOrder,
   };
 }
 
 /** Get all slugs — used in generateStaticParams. */
 export function getAllSlugs(): string[] {
   if (!fs.existsSync(POSTS_DIR)) return [];
-  return fs
-    .readdirSync(POSTS_DIR)
-    .filter((f) => f.endsWith(".mdx") || f.endsWith(".md"))
-    .map((f) => f.replace(/\.(mdx|md)$/, ""));
+  const entries = fs.readdirSync(POSTS_DIR, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .filter((entry) => fs.existsSync(path.join(POSTS_DIR, entry.name, "page.mdx")))
+    .map((entry) => entry.name);
 }
 
 /** Get featured posts (up to `limit`). */

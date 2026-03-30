@@ -2,6 +2,7 @@
 
 /**
  * ArticleML to MDX Converter (Pure JavaScript)
+ * Simplified: text-based only, with placeholder support
  * Usage: node convert.js <input-file> [output-file]
  */
 
@@ -36,6 +37,8 @@ function parseFrontMatter(yaml) {
     if (key === "category") fm.category = value.replace(/^["']|["']$/g, "");
     if (key === "featured") fm.featured = value === "true";
     if (key === "readingTime") fm.readingTime = value.replace(/^["']|["']$/g, "");
+    if (key === "series") fm.series = value.replace(/^["']|["']$/g, "");
+    if (key === "seriesOrder") fm.seriesOrder = parseInt(value, 10);
     if (key === "tags") {
       const tagsStr = value.replace(/^\[|\]$/g, "");
       fm.tags = tagsStr
@@ -51,35 +54,6 @@ function parseFrontMatter(yaml) {
   }
 
   return fm;
-}
-
-function processSimulations(content) {
-  const simPattern = /!SIMULATION\s+type="([^"]+)"\s+component="([^"]+)"\s+title="([^"]+)"\s+config=(\{[\s\S]*?\})\s*!END-SIMULATION/g;
-
-  content = content.replace(simPattern, (match, type, component, title, configStr) => {
-    try {
-      const cleanConfig = configStr.replace(/'/g, '"').replace(/,\s*}/g, "}");
-      const config = JSON.parse(cleanConfig);
-      const configJSON = JSON.stringify(config);
-      return `<${component} title="${escapeForJSON(title)}" config={${configJSON}} />`;
-    } catch (e) {
-      console.warn(`⚠️  Failed to parse ${component} config`);
-      return `<!-- Failed to parse ${component} simulation -->`;
-    }
-  });
-
-  const sandboxPattern = /!SIMULATION\s+type="code-sandbox"\s+language="([^"]+)"\s+title="([^"]+)"\s+code="""([\s\S]*?)"""\s*!END-SIMULATION/g;
-  content = content.replace(sandboxPattern, (match, lang, title, code) => {
-    try {
-      const trimmedCode = code.trim().replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
-      return `<CodeSandbox language="${escapeForJSON(lang)}" title="${escapeForJSON(title)}" code={\`${trimmedCode}\`} />`;
-    } catch (e) {
-      console.warn(`⚠️  Failed to parse CodeSandbox`);
-      return `<!-- Failed to parse CodeSandbox -->`;
-    }
-  });
-
-  return content;
 }
 
 function processCallouts(content) {
@@ -145,13 +119,40 @@ function processTables(content) {
   });
 }
 
+function processPlaceholders(content) {
+  // Pattern: [!TYPE] : {desc: "..."}
+  const placeholderPattern = /\[\!([A-Z]+)\]\s*:\s*\{desc:\s*"([^"]*)"\s*\}/g;
+  return content.replace(placeholderPattern, (match, type, desc) => {
+    try {
+      const typeMap = {
+        IMAGE: "image",
+        VIDEO: "video",
+        SIMULATION: "simulation",
+        CODE: "code",
+      };
+
+      const mappedType = typeMap[type.toUpperCase()];
+      if (!mappedType) {
+        console.warn(`⚠️  Unknown placeholder type: ${type}`);
+        return match;
+      }
+
+      const title = type.charAt(0) + type.slice(1).toLowerCase();
+      return `<Placeholder type="${mappedType}" title="${escapeForJSON(title)}" description="${escapeForJSON(desc)}" />`;
+    } catch (e) {
+      console.warn(`⚠️  Failed to parse placeholder: ${type}`);
+      return match;
+    }
+  });
+}
+
 function parseBody(body) {
   let mdx = body;
-  mdx = processSimulations(mdx);
   mdx = processCallouts(mdx);
   mdx = processMathNotes(mdx);
   mdx = processAttentionBlocks(mdx);
   mdx = processTables(mdx);
+  mdx = processPlaceholders(mdx);
   mdx = mdx.replace(/\n{3,}/g, "\n\n").trim();
   return mdx;
 }
@@ -196,6 +197,8 @@ function articleMLToMDX(article) {
   mdx += `tags: [${tags}]\n`;
   if (fm.featured) mdx += `featured: ${fm.featured}\n`;
   if (fm.readingTime) mdx += `readingTime: "${escapeForJSON(fm.readingTime)}"\n`;
+  if (fm.series) mdx += `series: "${escapeForJSON(fm.series)}"\n`;
+  if (fm.seriesOrder !== undefined) mdx += `seriesOrder: ${fm.seriesOrder}\n`;
   mdx += "---\n\n";
   mdx += article.mdxContent;
 
@@ -216,11 +219,15 @@ if (args.length === 0) {
 }
 
 const inputPath = args[0];
+
+// Extract slug from input filename (remove .articleml extension)
+const slugMatch = inputPath.match(/([^\/]+)\.articleml$/);
+const slug = slugMatch ? slugMatch[1] : inputPath.replace(".articleml", "");
+
+// Output path: src/content/posts/{slug}/page.mdx
 const outputPath =
   args[1] ||
-  inputPath
-    .replace(".articleml", ".mdx")
-    .replace(/^(?!src\/content\/posts\/)/, "src/content/posts/");
+  `src/content/posts/${slug}/page.mdx`;
 
 const resolvedInput = path.resolve(process.cwd(), inputPath);
 const resolvedOutput = path.resolve(process.cwd(), outputPath);

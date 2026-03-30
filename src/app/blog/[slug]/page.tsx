@@ -20,9 +20,7 @@ import ConceptCard from "@/components/blog/ConceptCard";
 import RelatedPosts from "@/components/blog/RelatedPosts";
 import ReadingProgress from "@/components/layout/ReadingProgress";
 import EditorialAccent from "@/components/ui/EditorialAccent";
-import MatrixVisualization from "@/components/blog/MatrixVisualization";
-import GraphVisualizer from "@/components/blog/GraphVisualizer";
-import CodeSandbox from "@/components/blog/CodeSandbox";
+import Placeholder from "@/components/blog/Placeholder";
 import type { ConceptCard as ConceptCardType } from "@/lib/types";
 
 interface PageProps {
@@ -225,11 +223,11 @@ const mdxComponents = {
     </div>
   ),
 
-  // Math highlight inline
+  // Math highlight block — uses div so display math ($$) renders correctly inside
   MathNote: ({ children }: { children: React.ReactNode }) => (
-    <span className="bg-[var(--color-primary-fixed-dim)]/20 px-1.5 border-b border-[var(--color-primary)]/25 rounded-[0.125rem]">
+    <div className="my-6 bg-[var(--color-primary-fixed-dim)]/10 border-l-4 border-[var(--color-primary)]/40 px-5 py-4 rounded-r-[0.25rem]">
       {children}
-    </span>
+    </div>
   ),
 
   // Editorial accent (for !ATTENTION blocks)
@@ -241,10 +239,8 @@ const mdxComponents = {
     </div>
   ),
 
-  // Interactive simulations
-  MatrixVisualization: (props: any) => <MatrixVisualization {...props} />,
-  GraphVisualizer: (props: any) => <GraphVisualizer {...props} />,
-  CodeSandbox: (props: any) => <CodeSandbox {...props} />,
+  // Placeholder for manual content
+  Placeholder: (props: any) => <Placeholder {...props} />,
 };
 
 const mdxOptions = {

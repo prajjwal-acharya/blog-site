@@ -22,29 +22,51 @@ interface Edge {
 
 interface GraphVizProps {
   title: string;
-  config: {
-    nodes: Node[];
-    edges: Edge[];
+  config?: {
+    nodes?: Node[];
+    edges?: Edge[];
   };
 }
 
+const fallbackConfig = {
+  nodes: [
+    { id: "point", label: "P", x: 300, y: 120 },
+    { id: "origin", label: "O", x: 120, y: 220 },
+    { id: "cart", label: "(x,y)", x: 480, y: 120 },
+    { id: "polar", label: "(r,θ)", x: 480, y: 220 },
+  ],
+  edges: [
+    { from: "origin", to: "point", weight: 1 },
+    { from: "point", to: "cart", weight: 1 },
+    { from: "point", to: "polar", weight: 1 },
+    { from: "origin", to: "polar", weight: 1 },
+  ],
+};
+
 export default function GraphVisualizer({ title, config }: GraphVizProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [nodes, setNodes] = useState<Node[]>([]);
+  const resolvedConfig = config?.nodes?.length ? config : fallbackConfig;
+  const [nodes, setNodes] = useState<Node[]>(() =>
+    (resolvedConfig?.nodes || []).map((node, idx) => ({
+      ...node,
+      x: node.x ?? (idx + 1) * (600 / ((resolvedConfig?.nodes?.length || 0) + 1)),
+      y: node.y ?? 150,
+    }))
+  );
   const [draggedNode, setDraggedNode] = useState<string | null>(null);
   const [highlightedEdges, setHighlightedEdges] = useState<Set<string>>(new Set());
 
   // Initialize nodes with positions if not provided
   useEffect(() => {
-    if (config.nodes.length === 0) return;
+    if (!resolvedConfig?.nodes || resolvedConfig.nodes.length === 0) return;
 
-    const initialNodes = config.nodes.map((node, idx) => ({
+    const initialNodes = (resolvedConfig?.nodes || []).map((node, idx) => ({
       ...node,
-      x: node.x ?? (idx + 1) * (600 / (config.nodes.length + 1)),
+      x: node.x ?? (idx + 1) * (600 / ((resolvedConfig?.nodes?.length || 0) + 1)),
       y: node.y ?? 150,
     }));
     setNodes(initialNodes);
-  }, [config.nodes]);
+  }, [resolvedConfig?.nodes]);
 
   const handleMouseDown = (nodeId: string) => {
     setDraggedNode(nodeId);
@@ -83,7 +105,7 @@ export default function GraphVisualizer({ title, config }: GraphVizProps) {
 
   const handleNodeClick = (nodeId: string) => {
     const connectedEdges = new Set<string>();
-    config.edges.forEach((edge) => {
+    (resolvedConfig?.edges || []).forEach((edge) => {
       if (edge.from === nodeId || edge.to === nodeId) {
         connectedEdges.add(`${edge.from}-${edge.to}`);
       }
@@ -91,8 +113,13 @@ export default function GraphVisualizer({ title, config }: GraphVizProps) {
     setHighlightedEdges(connectedEdges);
   };
 
+  const getNodePosition = (id: string): [number, number] => {
+    const node = nodes.find((n) => n.id === id);
+    return node ? [node.x || 0, node.y || 0] : [0, 0];
+  };
+
   return (
-    <div className="my-8 bg-[var(--color-surface-container-lowest)] rounded-[0.25rem] border border-[var(--color-outline-variant)]/20 p-6">
+    <div className="not-prose my-8 bg-[var(--color-surface-container-lowest)] rounded-[0.25rem] border border-[var(--color-outline-variant)]/20 p-6">
       <h3 className="font-headline text-lg font-semibold text-[var(--color-on-surface)] mb-6">{title}</h3>
 
       <div className="bg-[var(--color-surface-container-low)] rounded-[0.25rem] overflow-hidden">
@@ -105,21 +132,18 @@ export default function GraphVisualizer({ title, config }: GraphVizProps) {
           style={{ cursor: draggedNode ? "grabbing" : "grab" }}
         >
           {/* Draw edges */}
-          {config.edges.map((edge, idx) => {
-            const fromNode = nodes.find((n) => n.id === edge.from);
-            const toNode = nodes.find((n) => n.id === edge.to);
-
-            if (!fromNode || !toNode) return null;
-
+          {(resolvedConfig?.edges || []).map((edge, idx) => {
+            const [fromX, fromY] = getNodePosition(edge.from);
+            const [toX, toY] = getNodePosition(edge.to);
             const isHighlighted = highlightedEdges.has(`${edge.from}-${edge.to}`);
 
             return (
               <g key={idx}>
                 <line
-                  x1={fromNode.x}
-                  y1={fromNode.y}
-                  x2={toNode.x}
-                  y2={toNode.y}
+                  x1={fromX}
+                  y1={fromY}
+                  x2={toX}
+                  y2={toY}
                   stroke={isHighlighted ? "#994121" : "#89726B"}
                   strokeWidth={isHighlighted ? 3 : 2}
                   opacity={isHighlighted ? 1 : 0.4}
@@ -127,8 +151,8 @@ export default function GraphVisualizer({ title, config }: GraphVizProps) {
                 />
                 {edge.weight !== undefined && (
                   <text
-                    x={(fromNode.x + toNode.x) / 2}
-                    y={(fromNode.y + toNode.y) / 2 - 5}
+                    x={(fromX + toX) / 2}
+                    y={(fromY + toY) / 2 - 5}
                     textAnchor="middle"
                     fontSize="12"
                     fill="var(--color-secondary)"
@@ -142,35 +166,39 @@ export default function GraphVisualizer({ title, config }: GraphVizProps) {
           })}
 
           {/* Draw nodes */}
-          {nodes.map((node) => (
-            <g
-              key={node.id}
-              onMouseDown={() => handleMouseDown(node.id)}
-              onClick={() => handleNodeClick(node.id)}
-              style={{ cursor: "pointer" }}
-            >
-              <circle
-                cx={node.x}
-                cy={node.y}
-                r={24}
-                fill={highlightedEdges.size > 0 ? "#E3E3DE" : "#F5F4EF"}
-                stroke={highlightedEdges.has(node.id) ? "#994121" : "#89726B"}
-                strokeWidth={highlightedEdges.has(node.id) ? 3 : 2}
-                className="transition-all"
-              />
-              <text
-                x={node.x}
-                y={node.y + 6}
-                textAnchor="middle"
-                fontSize="14"
-                fontWeight="bold"
-                fill="var(--color-on-surface)"
-                className="pointer-events-none"
+          {nodes.map((node) => {
+            const x = node.x || 0;
+            const y = node.y || 0;
+            return (
+              <g
+                key={node.id}
+                onMouseDown={() => handleMouseDown(node.id)}
+                onClick={() => handleNodeClick(node.id)}
+                style={{ cursor: "pointer" }}
               >
-                {node.label}
-              </text>
-            </g>
-          ))}
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={24}
+                  fill={highlightedEdges.size > 0 ? "#E3E3DE" : "#F5F4EF"}
+                  stroke={highlightedEdges.has(node.id) ? "#994121" : "#89726B"}
+                  strokeWidth={highlightedEdges.has(node.id) ? 3 : 2}
+                  className="transition-all"
+                />
+                <text
+                  x={x}
+                  y={y + 6}
+                  textAnchor="middle"
+                  fontSize="14"
+                  fontWeight="bold"
+                  fill="var(--color-on-surface)"
+                  className="pointer-events-none"
+                >
+                  {node.label}
+                </text>
+              </g>
+            );
+          })}
         </svg>
       </div>
 
