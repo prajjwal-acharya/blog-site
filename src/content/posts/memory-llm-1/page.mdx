@@ -1,0 +1,199 @@
+---
+title: "What Memory Really Means in Large Language Models"
+date: "2026-03-30"
+description: "LLMs don’t store memory the way you think. They reconstruct it every step through attention."
+category: "AI Advances"
+tags: ["llm", "transformers", "memory", "attention"]
+featured: true
+readingTime: "8 min"
+series: "Memory Systems in Large Language Models"
+seriesOrder: 1
+---
+
+You think ChatGPT remembers what you said.
+
+It doesn’t.
+
+Every token you generate forces the model to reconstruct its entire understanding of the conversation — from scratch.
+
+Not metaphorically. Literally.
+
+<EditorialAccent>
+Large Language Models do not store memory between steps. They recompute it.
+</EditorialAccent>
+
+---
+
+## The Illusion of Memory
+
+When you type:
+
+> “Explain this again but simpler”
+
+It feels like the model *remembers* what “this” refers to.
+
+But internally, nothing is remembered in the way humans understand memory.
+
+There is no persistent state.\
+No evolving internal narrative.\
+No memory buffer being appended to.
+
+Instead, every step is a **stateless computation over a growing sequence**.
+
+---
+
+## What We Call “Memory” (But Isn’t)
+
+To understand this properly, we need to separate three things that often get conflated:
+
+| Component        | What it Actually Is | Role                  |
+| ---------------- | ------------------- | --------------------- |
+| Weights          | Learned parameters  | Long-term knowledge   |
+| Activations      | Intermediate values | Temporary computation |
+| Context (tokens) | Input sequence      | External memory       |
+
+<MemoryLayersDiagram />
+
+<Callout title="Key Insight">
+What we call "memory" in LLMs is not stored internally — it is encoded in the input sequence and reconstructed through computation.
+</Callout>
+
+The model doesn’t “remember” your conversation.
+
+It re-reads it — every time.
+
+---
+
+## Why Transformers Don’t Remember
+
+Transformers are fundamentally **stateless functions**.
+
+At each step:
+
+$$
+y_t = f(x_1, x_2, ..., x_t)
+$$
+
+There is no hidden state carried forward like in RNNs.
+
+Instead, the entire sequence is passed into the model repeatedly.
+
+This design has a profound implication:
+
+> Memory is not stored — it is recomputed.
+
+---
+
+## Attention as a Memory System
+
+The closest thing transformers have to memory is **attention**.
+
+Attention allows each token to “look back” at previous tokens and retrieve relevant information.
+
+<MathNote>
+Attention mechanism:
+
+$$
+\text{Attention}(Q, K, V) =
+\text{softmax}\left(\frac{QK^T}{\sqrt{d}}\right)V
+$$
+</MathNote>
+
+Here’s what’s happening conceptually:
+
+- **Keys (K)** → represent stored information
+- **Values (V)** → actual content
+- **Queries (Q)** → what the current token is looking for
+
+Each token builds its own “view” of the past by weighting previous tokens.
+
+<AttentionFlow />
+
+This is not storage.
+
+This is **on-the-fly retrieval**.
+
+---
+
+## Memory is Recomputed Every Step
+
+Now comes the critical shift.
+
+When generating token $t+1$:
+
+- The model doesn’t reuse previous computations
+- It recomputes attention across all previous tokens
+- It rebuilds its entire “understanding” of context
+
+This means:
+
+- Computation grows with sequence length
+- Memory usage grows with sequence length
+- Cost grows with sequence length
+
+<EditorialAccent>
+Every new token forces the model to revisit all previous tokens.
+</EditorialAccent>
+
+---
+
+## Visualization: Recomputation
+
+<RecomputationSim />
+
+---
+
+## The Hidden Bottleneck: Memory Movement
+
+At small scales, this recomputation is manageable.
+
+At large scales, it becomes the dominant cost.
+
+Not because of compute.
+
+But because of **memory movement**.
+
+Each step requires:
+
+- loading previous keys and values
+- computing attention weights
+- writing new representations
+
+This creates a system where:
+
+> GPUs spend more time waiting for memory than doing math.
+
+<EditorialAccent>
+Modern LLM inference is often memory-bandwidth bound, not compute-bound.
+</EditorialAccent>
+
+---
+
+## Upgrading Your Mental Model
+
+Let’s replace the intuitive (but wrong) model:
+
+| Old Mental Model   | Correct Model                  |
+| ------------------ | ------------------------------ |
+| LLM stores memory  | LLM reconstructs memory        |
+| Memory is static   | Memory is dynamic              |
+| Tokens are inputs  | Tokens are active participants |
+| Context is passive | Context is the memory itself   |
+
+---
+
+## Where Does Memory Actually Live?
+
+If memory is:
+
+- not stored internally
+- not persistent
+- not reused
+
+Then where does it actually live?
+
+In the next article, we’ll answer that precisely:
+
+> Where does memory physically reside inside a transformer?
+
+And why that leads to one of the biggest bottlenecks in modern AI systems.

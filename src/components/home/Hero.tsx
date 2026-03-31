@@ -1,113 +1,168 @@
 /**
- * Hero — homepage hero with asymmetric editorial layout.
- * Server component; no client-side JS.
+ * Hero — full-bleed animated homepage hero.
+ * HeroCanvas is a client component; everything else is server-rendered.
  */
 
+import Link from "next/link";
 import ScrollReveal from "@/components/ui/ScrollReveal";
+import HeroCanvas from "./HeroCanvas";
+import type { PostMeta } from "@/lib/types";
 
-export default function Hero() {
+interface Props {
+  latestPost?: PostMeta;
+  postCount: number;
+}
+
+export default function Hero({ latestPost, postCount }: Props) {
   return (
     <section
-      className="max-w-screen-xl mx-auto px-6 md:px-10 pt-16 pb-28"
+      className="relative min-h-[92vh] flex flex-col justify-center overflow-hidden"
       aria-label="Hero section"
     >
-      {/* 12-column editorial grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-end">
-        {/* Headline column */}
-        <div className="lg:col-span-8">
-          <ScrollReveal delay={0}>
-            <span className="eyebrow mb-6 block">
-              Thinking in public · AI & Math
-            </span>
-            <h1 className="font-headline text-[clamp(3rem,8vw,7rem)] leading-[0.92] tracking-[-0.02em] text-[var(--color-on-surface)] font-semibold max-w-4xl text-balance">
-              Where{" "}
-              <span className="italic text-[var(--color-primary)]">
-                intelligence
-              </span>{" "}
-              meets intuition.
-            </h1>
-          </ScrollReveal>
-        </div>
+      {/* ── Animated canvas ── */}
+      <HeroCanvas />
 
-        {/* Sub-copy column — intentionally offset right */}
-        <div className="lg:col-span-4 pb-2">
-          <ScrollReveal delay={120}>
-            <p className="text-[var(--color-secondary)] text-lg leading-[1.75] font-light italic border-l-2 border-[var(--color-outline-variant)]/40 pl-6">
-              Deep dives into AI advancements, the math behind ML, elegant
-              algorithms, and honest build logs from side projects.
-            </p>
-          </ScrollReveal>
-        </div>
-      </div>
+      {/* Bottom fade to page background — only overlay kept */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-56 pointer-events-none"
+        style={{
+          background: "linear-gradient(to bottom, transparent, var(--color-background))",
+        }}
+        aria-hidden="true"
+      />
 
-      {/* Hero image banner */}
-      <ScrollReveal delay={200} className="mt-16">
-        <div className="relative h-[520px] md:h-[620px] w-full overflow-hidden rounded-[0.25rem] group">
-          {/* Gradient overlay with abstract neural pattern */}
-          <div
-            className="absolute inset-0 bg-gradient-to-br from-[var(--color-surface-container)] via-[var(--color-surface-container-high)] to-[var(--color-surface-container-highest)]"
-            aria-hidden="true"
-          />
-          {/* Decorative SVG — abstract neural / math motif */}
-          <svg
-            className="absolute inset-0 w-full h-full opacity-20 transition-opacity group-hover:opacity-30"
-            viewBox="0 0 800 600"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <defs>
-              <radialGradient id="g1" cx="50%" cy="50%" r="60%">
-                <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="transparent" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-            <circle cx="400" cy="300" r="280" fill="url(#g1)" />
-            {/* Node network */}
-            {[
-              [100, 150], [300, 80], [500, 130], [700, 200],
-              [180, 350], [400, 430], [620, 380], [750, 450],
-              [200, 520], [460, 550],
-            ].map(([cx, cy], i) => (
-              <g key={i}>
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r={i % 3 === 0 ? 6 : 4}
-                  fill="var(--color-primary)"
-                  opacity="0.7"
-                />
-              </g>
-            ))}
-            {/* Edges */}
-            {[
-              "M100,150 L300,80", "M300,80 L500,130", "M500,130 L700,200",
-              "M100,150 L180,350", "M300,80 L400,430", "M700,200 L620,380",
-              "M180,350 L400,430", "M400,430 L620,380", "M620,380 L750,450",
-              "M180,350 L200,520", "M400,430 L460,550",
-            ].map((d, i) => (
-              <path
-                key={i}
-                d={d}
-                stroke="var(--color-primary)"
-                strokeWidth="1"
-                opacity="0.25"
-              />
-            ))}
-          </svg>
+      {/* ── Content ── */}
+      <div className="relative z-10 max-w-screen-xl mx-auto px-6 md:px-10 py-20 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
 
-          {/* Cover story overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-on-surface)]/30 to-transparent" />
-          <div className="absolute bottom-10 left-10 text-[var(--color-surface-bright)]">
-            <span className="font-label text-[0.6rem] tracking-[0.25em] uppercase mb-2 block opacity-80">
-              Latest deep dive
-            </span>
-            <h2 className="font-headline text-3xl md:text-4xl font-semibold">
-              The Math Behind Transformers
-            </h2>
+          {/* Left: headline */}
+          <div className="lg:col-span-8 xl:col-span-7">
+            <ScrollReveal delay={0}>
+              <span className="eyebrow mb-7 block">
+                Thinking in public · AI & Mathematics
+              </span>
+            </ScrollReveal>
+
+            <ScrollReveal delay={70}>
+              <h1
+                className="font-headline font-semibold leading-[0.87] tracking-[-0.03em] text-[var(--color-on-surface)]"
+                style={{ fontSize: "clamp(3.2rem, 8.5vw, 8rem)" }}
+              >
+                Where{" "}
+                <em className="text-[var(--color-primary)] not-italic">
+                  intelligence
+                </em>
+                <br />
+                meets{" "}
+                <em className="italic text-[var(--color-primary)]">
+                  intuition.
+                </em>
+              </h1>
+            </ScrollReveal>
+
+            <ScrollReveal delay={160}>
+              <p className="mt-8 text-[var(--color-secondary)] text-[1.15rem] leading-[1.8] font-light max-w-lg">
+                Deep dives into AI advances, the mathematics of machine
+                learning, elegant algorithms, and honest build logs.
+              </p>
+            </ScrollReveal>
+
+            <ScrollReveal delay={230}>
+              <div className="mt-10 flex items-center gap-8 flex-wrap">
+                <Link
+                  href="/archive"
+                  className="bg-[var(--color-primary)] text-[var(--color-on-primary)] px-8 py-3.5 font-label text-[0.68rem] tracking-[0.18em] uppercase hover:opacity-90 active:scale-95 transition-all"
+                >
+                  Read latest
+                </Link>
+                <Link
+                  href="/series"
+                  className="font-label text-[0.68rem] tracking-[0.18em] uppercase text-[var(--color-on-surface)]/50 hover:text-[var(--color-primary)] transition-colors"
+                >
+                  Browse series →
+                </Link>
+              </div>
+            </ScrollReveal>
+          </div>
+
+          {/* Right: decorative panel */}
+          <div className="hidden lg:flex lg:col-span-4 xl:col-span-5 flex-col items-end gap-6">
+            <ScrollReveal delay={320}>
+              <div className="border border-[var(--color-outline-variant)]/20 bg-[var(--color-surface-container-low)]/60 backdrop-blur-sm p-8 space-y-6 min-w-[220px]">
+                {/* Post count */}
+                <div>
+                  <div
+                    className="font-headline font-bold text-[var(--color-primary)] leading-none"
+                    style={{ fontSize: "clamp(3rem, 5vw, 5rem)" }}
+                  >
+                    {postCount}
+                  </div>
+                  <div className="font-label text-[0.58rem] tracking-[0.28em] uppercase text-[var(--color-secondary)] mt-1">
+                    Published articles
+                  </div>
+                </div>
+
+                <div className="w-full h-px bg-[var(--color-outline-variant)]/20" />
+
+                {/* Domains */}
+                <div className="space-y-2">
+                  {["AI Advances", "Math & ML", "Algorithms"].map((d) => (
+                    <div key={d} className="flex items-center gap-2">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]"
+                        aria-hidden="true"
+                      />
+                      <span className="font-label text-[0.6rem] tracking-[0.15em] uppercase text-[var(--color-on-surface)]/50">
+                        {d}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="w-full h-px bg-[var(--color-outline-variant)]/20" />
+
+                {/* Latest post teaser */}
+                {latestPost && (
+                  <Link href={`/blog/${latestPost.slug}`} className="group block">
+                    <div className="font-label text-[0.55rem] tracking-[0.2em] uppercase text-[var(--color-primary)] mb-1">
+                      Latest
+                    </div>
+                    <div className="font-headline text-sm leading-snug text-[var(--color-on-surface)] group-hover:text-[var(--color-primary)] transition-colors line-clamp-2">
+                      {latestPost.title}
+                    </div>
+                    <div className="font-label text-[0.55rem] tracking-[0.1em] uppercase text-[var(--color-secondary)] mt-1">
+                      {latestPost.readingTime}
+                    </div>
+                  </Link>
+                )}
+              </div>
+            </ScrollReveal>
           </div>
         </div>
-      </ScrollReveal>
+
+        {/* ── Bottom strip: tag cloud ── */}
+        <ScrollReveal delay={400} className="mt-16 lg:mt-20">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <span className="font-label text-[0.55rem] tracking-[0.2em] uppercase text-[var(--color-outline)] flex-shrink-0">
+              Topics
+            </span>
+            <div className="w-8 h-px bg-[var(--color-outline-variant)]/30 flex-shrink-0" />
+            <div className="flex gap-2 flex-wrap">
+              {[
+                "transformers","attention","KV-cache","quantization",
+                "neural networks","mathematics","algorithms","ML theory",
+              ].map((tag) => (
+                <span
+                  key={tag}
+                  className="font-label text-[0.58rem] tracking-[0.12em] uppercase border border-[var(--color-outline-variant)]/30 px-2.5 py-1 text-[var(--color-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-default"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        </ScrollReveal>
+      </div>
     </section>
   );
 }

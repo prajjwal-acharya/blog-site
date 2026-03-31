@@ -46,37 +46,12 @@ By applying QJL, the estimator pairs high-precision query vectors ($Q$) with the
 
 Let's look at how TurboQuant stacks up against standard baseline caching.
 
-<table>
-<thead>
-<tr>
-  <th>Metric</th>
-  <th>FP16 Baseline</th>
-  <th>TurboQuant</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td>Bits per Value</td>
-  <td>16 bits</td>
-  <td>~3-4 bits</td>
-</tr>
-<tr>
-  <td>H100 Speedup</td>
-  <td>1x</td>
-  <td>Up to 8x</td>
-</tr>
-<tr>
-  <td>Accuracy Loss</td>
-  <td>None</td>
-  <td>Zero</td>
-</tr>
-<tr>
-  <td>Tuning Needed</td>
-  <td>No</td>
-  <td>No (Training-free)</td>
-</tr>
-</tbody>
-</table>
+| Metric         | FP16 Baseline | TurboQuant         |
+| -------------- | ------------- | ------------------ |
+| Bits per Value | 16 bits       | ~3-4 bits          |
+| H100 Speedup   | 1x            | Up to 8x           |
+| Accuracy Loss  | None          | Zero               |
+| Tuning Needed  | No            | No (Training-free) |
 
 <EditorialAccent>
 While the 8x speedup applies specifically to the $Q \times K^T$ computation, the end-to-end pipeline speedup will depend on your specific memory-bound constraints. For local deployments, this means running 7B-8B models with massive contexts on standard 8GB/12GB GPUs is finally practical!

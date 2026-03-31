@@ -17,7 +17,7 @@ export default function FeaturedGrid({ posts }: Props) {
   if (!main) return null;
 
   return (
-    <section className="max-w-screen-xl mx-auto px-6 md:px-10 mb-32">
+    <section className="max-w-screen-xl mx-auto px-6 md:px-10 pt-20 mb-32">
       {/* Section header */}
       <ScrollReveal>
         <div className="flex justify-between items-baseline mb-12">

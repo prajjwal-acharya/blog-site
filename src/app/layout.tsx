@@ -32,6 +32,10 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         />
+        {/* Math rendering */}
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.44/dist/katex.min.css" />
+        {/* Code syntax highlighting */}
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css" />
         <meta name="theme-color" content="#FAF9F4" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#0D150F" media="(prefers-color-scheme: dark)" />
       </head>

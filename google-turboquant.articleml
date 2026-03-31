@@ -1,5 +1,6 @@
 ---
 title: "Google TurboQuant: The 3-Bit KV Cache Revolution"
+slug: "google-turboquant"
 date: "2026-03-30"
 description: "How Google's new training-free algorithm compresses LLM memory by 6x with zero accuracy loss."
 category: "AI Advances"

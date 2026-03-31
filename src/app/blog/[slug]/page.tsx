@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import Script from "next/script";
@@ -21,6 +22,7 @@ import RelatedPosts from "@/components/blog/RelatedPosts";
 import ReadingProgress from "@/components/layout/ReadingProgress";
 import EditorialAccent from "@/components/ui/EditorialAccent";
 import Placeholder from "@/components/blog/Placeholder";
+import { getPostComponents } from "@/lib/load-post-components";
 import type { ConceptCard as ConceptCardType } from "@/lib/types";
 
 interface PageProps {
@@ -244,7 +246,7 @@ const mdxComponents = {
 };
 
 const mdxOptions = {
-  remarkPlugins: [remarkMath],
+  remarkPlugins: [remarkMath, remarkGfm],
   rehypePlugins: [rehypeKatex, rehypeHighlight],
 };
 
@@ -257,6 +259,9 @@ export default async function ArticlePage({ params }: PageProps) {
   const related  = allPosts
     .filter((p) => p.slug !== slug && p.category === post.category)
     .slice(0, 3);
+
+  const postComponents = await getPostComponents(slug);
+  const allComponents = { ...mdxComponents, ...postComponents };
 
   // Placeholder concept cards — in production these would come from front-matter
   const conceptCards: ConceptCardType[] = [
@@ -323,7 +328,7 @@ export default async function ArticlePage({ params }: PageProps) {
             <MDXRemote
               source={post.content}
               options={{ mdxOptions } as object}
-              components={mdxComponents}
+              components={allComponents}
             />
           </div>
 

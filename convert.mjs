@@ -106,7 +106,13 @@ function segmentBody(body) {
 // ─────────────────────────────────────────────────────────────
 
 function escapeForJSX(str) {
-  return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return str
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\{/g, "&#123;")
+    .replace(/\}/g, "&#125;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function serializeChildren(children) {
@@ -198,10 +204,10 @@ function nodeToMDX(node) {
       const separator = (i) => {
         const a = align[i];
         const w = colWidths[i];
-        if (a === "center") return `:${"─".repeat(w - 2)}:`;
-        if (a === "right") return `${"─".repeat(w - 1)}:`;
-        if (a === "left") return `:${"─".repeat(w - 1)}`;
-        return "─".repeat(w);
+        if (a === "center") return `:${"-".repeat(w - 2)}:`;
+        if (a === "right") return `${"-".repeat(w - 1)}:`;
+        if (a === "left") return `:${"-".repeat(w - 1)}`;
+        return "-".repeat(w);
       };
 
       const headerRow = `| ${headerCells.map((c, i) => pad(c.text, colWidths[i])).join(" | ")} |`;
@@ -239,14 +245,31 @@ function serializeListItem(node) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 3. PLACEHOLDER TRANSFORMER
+// 3. INLINE MATH PREPROCESSOR
+//    \(...\) → $...$ and \[...\] → $$...$$ before remark sees the text.
+//    remark-parse treats \( as an escaped paren and discards the backslash.
+// ─────────────────────────────────────────────────────────────
+
+function preprocessInlineMath(text) {
+  // \[ ... \]  →  $$\n...\n$$  (display math — process first to avoid conflicts)
+  const withDisplay = text.replace(/\\\[(.+?)\\\]/gs, (_, inner) => `$$\n${inner.trim()}\n$$`);
+  // \( ... \)  →  $ ... $   (inline math)
+  return withDisplay.replace(/\\\((.+?)\\\)/gs, (_, inner) => `$${inner.trim()}$`);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 4. PLACEHOLDER TRANSFORMER
 //    [!TYPE] : {desc: "..."} → <Placeholder type="..." ... />
 //    Single-line pattern — regex is fine here.
 // ─────────────────────────────────────────────────────────────
 
 function transformPlaceholders(text) {
-  const pattern = /\[\!([A-Z]+)\]\s*:\s*\{desc:\s*"([^"]*)"\s*\}/g;
-  return text.replace(pattern, (_, type, desc) => {
+  const pattern = /\[\!([A-Z]+)\]\s*:\s*\{desc:\s*"((?:[^"\\]|\\.)*)"(?:\s*,\s*component:\s*"([^"]*)")?\s*\}/g;
+  return text.replace(pattern, (_, type, desc, component) => {
+    // When a component name is provided, emit the component directly
+    if (component) {
+      return `<${component} />`;
+    }
     const typeMap = { IMAGE: "image", VIDEO: "video", SIMULATION: "simulation", CODE: "code" };
     const mapped = typeMap[type.toUpperCase()];
     if (!mapped) {
@@ -259,7 +282,7 @@ function transformPlaceholders(text) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 4. SEGMENT → MDX CONVERTER
+// 5. SEGMENT → MDX CONVERTER
 //    Processes each segment from the state machine.
 // ─────────────────────────────────────────────────────────────
 
@@ -267,7 +290,9 @@ const processor = unified().use(remarkParse).use(remarkGfm);
 
 function processMarkdownSegment(lines) {
   const raw = lines.join("\n");
-  const withPlaceholders = transformPlaceholders(raw);
+  // Preprocess inline math BEFORE remark so \(...\) isn't stripped
+  const withMath = preprocessInlineMath(raw);
+  const withPlaceholders = transformPlaceholders(withMath);
   // Parse with remark for proper AST, serialize back to MDX
   const tree = processor.parse(withPlaceholders);
   return nodeToMDX(tree).trim();
@@ -290,16 +315,22 @@ function processTableSegment(lines) {
 
   const [header, ...body] = dataRows;
 
-  let html = "<table>\n<thead>\n<tr>\n";
-  header.forEach((cell) => (html += `  <th>${cell}</th>\n`));
-  html += "</tr>\n</thead>\n<tbody>\n";
-  body.forEach((row) => {
-    html += "<tr>\n";
-    row.forEach((cell) => (html += `  <td>${cell}</td>\n`));
-    html += "</tr>\n";
+  const escapeCell = (s) => s.replace(/\|/g, "\\|");
+
+  const colWidths = header.map((h, i) => {
+    const maxData = body.reduce((m, row) => Math.max(m, (row[i] || "").length), 0);
+    return Math.max(h.length, maxData, 3);
   });
-  html += "</tbody>\n</table>";
-  return html;
+  const pad = (s, w) => (s || "").padEnd(w, " ");
+
+  const headerRow = `| ${header.map((h, i) => pad(escapeCell(h), colWidths[i])).join(" | ")} |`;
+  const sepRow = `| ${colWidths.map((w) => "-".repeat(w)).join(" | ")} |`;
+  const dataRows2 = body.map(
+    (row) =>
+      `| ${header.map((_, i) => pad(escapeCell(row[i] || ""), colWidths[i])).join(" | ")} |`
+  );
+
+  return [headerRow, sepRow, ...dataRows2].join("\n");
 }
 
 function segmentsToMDX(segments) {
@@ -330,7 +361,7 @@ function segmentsToMDX(segments) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 5. FRONTMATTER BUILDER
+// 6. FRONTMATTER BUILDER
 //    Uses gray-matter data to produce a valid YAML frontmatter block.
 // ─────────────────────────────────────────────────────────────
 
@@ -359,27 +390,43 @@ function buildFrontMatter(data) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 6. MAIN
+// 7. MAIN
 // ─────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
 
-if (args.length === 0) {
-  console.error("❌ Usage: node convert.mjs <input.articleml> [output.mdx]");
-  console.error("");
-  console.error("Examples:");
-  console.error("  node convert.mjs my-article.articleml");
-  console.error("  node convert.mjs my-article.articleml custom/path/page.mdx");
-  process.exit(1);
+if (args.length === 0 || args[0] === "--help" || args[0] === "-h") {
+  console.log("Usage: node convert.mjs <input.articleml> [--slug <name>] [output.mdx]");
+  console.log("");
+  console.log("Options:");
+  console.log("  --slug <name>   Override the output folder name (default: inferred from filename)");
+  console.log("");
+  console.log("Examples:");
+  console.log("  node convert.mjs my-article.articleml");
+  console.log("  node convert.mjs draft-v2.articleml --slug my-article");
+  console.log("  node convert.mjs my-article.articleml custom/path/page.mdx");
+  process.exit(args.length === 0 ? 1 : 0);
 }
 
 const inputPath = args[0];
-const slugMatch = inputPath.match(/([^/]+)\.articleml$/);
-const slug = slugMatch ? slugMatch[1] : path.basename(inputPath, ".articleml");
-const outputPath = args[1] || `src/content/posts/${slug}/page.mdx`;
+
+// Parse --slug option
+const slugFlagIdx = args.indexOf("--slug");
+const slugOverride = slugFlagIdx !== -1 ? args[slugFlagIdx + 1] : null;
+if (slugFlagIdx !== -1 && (!slugOverride || slugOverride.startsWith("-"))) {
+  console.error("❌ --slug requires a value, e.g. --slug my-post");
+  process.exit(1);
+}
+
+// Output path: skip args that are flags or flag values
+const positionalArgs = args.slice(1).filter((a, i, arr) => {
+  if (a.startsWith("-")) return false;
+  if (i > 0 && arr[i - 1] === "--slug") return false;
+  return true;
+});
+const explicitOutputPath = positionalArgs[0] || null;
 
 const resolvedInput = path.resolve(process.cwd(), inputPath);
-const resolvedOutput = path.resolve(process.cwd(), outputPath);
 
 if (!fs.existsSync(resolvedInput)) {
   console.error(`❌ Input file not found: ${resolvedInput}`);
@@ -393,6 +440,20 @@ try {
 
   // Step 1: Extract frontmatter + body via gray-matter
   const { content: body, data } = matter(source);
+
+  // Derive slug: --slug flag > frontmatter slug: field > title-based > filename
+  const filenameSlug =
+    inputPath.match(/([^/\\]+)\.articleml$/i)?.[1] ??
+    path.basename(inputPath, path.extname(inputPath));
+  const titleSlug = data.title
+    ? data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    : null;
+  const slug = slugOverride ?? data.slug ?? titleSlug ?? filenameSlug;
+
+  const resolvedOutput = path.resolve(
+    process.cwd(),
+    explicitOutputPath || `src/content/posts/${slug}/page.mdx`
+  );
 
   // Step 2: Validate + build frontmatter string
   const frontMatterStr = buildFrontMatter(data);
